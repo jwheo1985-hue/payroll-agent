@@ -1,0 +1,2172 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>급여·세금 자동화 에이전트</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&family=JetBrains+Mono:wght@400;600&display=swap');
+
+  :root {
+    --bg: #0a0e1a;
+    --surface: #111827;
+    --surface2: #1a2235;
+    --border: #1e2d47;
+    --accent: #00d4aa;
+    --accent2: #3b82f6;
+    --accent3: #f59e0b;
+    --text: #e2e8f0;
+    --text-muted: #64748b;
+    --danger: #ef4444;
+    --success: #10b981;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Noto Sans KR', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Header */
+  header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 0 24px;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 700;
+    font-size: 16px;
+    color: var(--accent);
+    letter-spacing: -0.5px;
+  }
+
+  .logo-icon {
+    width: 32px;
+    height: 32px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+  }
+
+  .header-date {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+
+  /* Layout */
+  .app {
+    display: grid;
+    grid-template-columns: 220px 1fr;
+    flex: 1;
+    height: calc(100vh - 60px);
+  }
+
+  /* Sidebar */
+  .sidebar {
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    padding: 20px 0;
+    overflow-y: auto;
+  }
+
+  .nav-section {
+    margin-bottom: 8px;
+  }
+
+  .nav-label {
+    padding: 6px 20px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+  }
+
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 20px;
+    cursor: pointer;
+    transition: all 0.15s;
+    font-size: 14px;
+    color: var(--text-muted);
+    border-left: 3px solid transparent;
+  }
+
+  .nav-item:hover {
+    background: var(--surface2);
+    color: var(--text);
+  }
+
+  .nav-item.active {
+    background: rgba(0, 212, 170, 0.08);
+    color: var(--accent);
+    border-left-color: var(--accent);
+  }
+
+  .nav-icon { font-size: 16px; }
+
+  /* Deadline badges */
+  .badge {
+    margin-left: auto;
+    background: var(--danger);
+    color: white;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 10px;
+  }
+
+  .badge.soon { background: var(--accent3); }
+
+  /* Main content */
+  .main {
+    overflow-y: auto;
+    padding: 24px;
+    display: none;
+  }
+
+  .main.active { display: block; }
+
+  .page-title {
+    font-size: 22px;
+    font-weight: 700;
+    margin-bottom: 4px;
+    letter-spacing: -0.5px;
+  }
+
+  .page-sub {
+    color: var(--text-muted);
+    font-size: 13px;
+    margin-bottom: 24px;
+  }
+
+  /* Cards */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+
+  .card-title {
+    font-size: 14px;
+    font-weight: 700;
+    margin-bottom: 16px;
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  /* Grid */
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+
+  /* Stat cards */
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 18px;
+  }
+
+  .stat-label {
+    font-size: 11px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 8px;
+  }
+
+  .stat-value {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 24px;
+    font-weight: 600;
+    color: var(--accent);
+  }
+
+  .stat-note {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-top: 4px;
+  }
+
+  /* Deadline timeline */
+  .deadline-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .deadline-item:last-child { border-bottom: none; }
+
+  .deadline-date {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--text-muted);
+    width: 80px;
+    flex-shrink: 0;
+  }
+
+  .deadline-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .deadline-info { flex: 1; }
+  .deadline-name { font-size: 13px; font-weight: 500; }
+  .deadline-org { font-size: 11px; color: var(--text-muted); }
+
+  .deadline-status {
+    font-size: 11px;
+    padding: 3px 8px;
+    border-radius: 20px;
+    font-weight: 600;
+  }
+
+  .status-urgent { background: rgba(239,68,68,0.15); color: var(--danger); }
+  .status-soon { background: rgba(245,158,11,0.15); color: var(--accent3); }
+  .status-ok { background: rgba(16,185,129,0.15); color: var(--success); }
+
+  /* Form styles */
+  .form-group {
+    margin-bottom: 14px;
+  }
+
+  label {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-muted);
+    margin-bottom: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  input, select {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    color: var(--text);
+    font-family: 'Noto Sans KR', sans-serif;
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  input:focus, select:focus {
+    border-color: var(--accent);
+  }
+
+  select option { background: var(--surface); }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 18px;
+    border-radius: 8px;
+    border: none;
+    font-family: 'Noto Sans KR', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .btn-primary {
+    background: var(--accent);
+    color: #0a0e1a;
+  }
+
+  .btn-primary:hover {
+    background: #00bfa0;
+    transform: translateY(-1px);
+  }
+
+  .btn-secondary {
+    background: var(--surface2);
+    color: var(--text);
+    border: 1px solid var(--border);
+  }
+
+  .btn-secondary:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  .btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  /* Result box */
+  .result-box {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    line-height: 1.8;
+    white-space: pre-wrap;
+    min-height: 80px;
+    color: var(--text);
+  }
+
+  /* AI chat area */
+  .chat-container {
+    display: flex;
+    flex-direction: column;
+    height: calc(100vh - 160px);
+  }
+
+  .chat-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px 0;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .msg {
+    max-width: 80%;
+    padding: 12px 16px;
+    border-radius: 12px;
+    font-size: 14px;
+    line-height: 1.6;
+  }
+
+  .msg-user {
+    background: var(--accent2);
+    color: white;
+    align-self: flex-end;
+    border-bottom-right-radius: 4px;
+  }
+
+  .msg-ai {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    align-self: flex-start;
+    border-bottom-left-radius: 4px;
+  }
+
+  .msg-ai pre {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    background: var(--bg);
+    padding: 12px;
+    border-radius: 6px;
+    margin-top: 8px;
+    overflow-x: auto;
+    white-space: pre-wrap;
+  }
+
+  .chat-input-area {
+    display: flex;
+    gap: 10px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+  }
+
+  .chat-input {
+    flex: 1;
+    resize: none;
+    height: 48px;
+    padding: 12px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-family: 'Noto Sans KR', sans-serif;
+    font-size: 14px;
+    outline: none;
+  }
+
+  .chat-input:focus { border-color: var(--accent); }
+
+  /* Insurance table */
+  .ins-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+
+  .ins-table th {
+    background: var(--surface2);
+    padding: 10px 12px;
+    text-align: left;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-muted);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .ins-table td {
+    padding: 10px 12px;
+    border-bottom: 1px solid rgba(30,45,71,0.5);
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .ins-table tr:hover td { background: var(--surface2); }
+
+  .ins-row-total td {
+    font-weight: 700;
+    color: var(--accent);
+    border-top: 1px solid var(--border);
+  }
+
+  /* Tabs */
+  .tabs {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 20px;
+    background: var(--surface2);
+    padding: 4px;
+    border-radius: 10px;
+    width: fit-content;
+  }
+
+  .tab {
+    padding: 8px 16px;
+    border-radius: 7px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-muted);
+    transition: all 0.2s;
+  }
+
+  .tab.active {
+    background: var(--accent);
+    color: #0a0e1a;
+    font-weight: 700;
+  }
+
+  /* Loading dots */
+  .loading {
+    display: inline-flex;
+    gap: 4px;
+    align-items: center;
+  }
+
+  .loading span {
+    width: 6px;
+    height: 6px;
+    background: var(--accent);
+    border-radius: 50%;
+    animation: bounce 1.2s infinite;
+  }
+
+  .loading span:nth-child(2) { animation-delay: 0.2s; }
+  .loading span:nth-child(3) { animation-delay: 0.4s; }
+
+  @keyframes bounce {
+    0%, 60%, 100% { transform: translateY(0); }
+    30% { transform: translateY(-6px); }
+  }
+
+  /* Payslip preview */
+  .payslip {
+    background: white;
+    color: #111;
+    padding: 24px;
+    border-radius: 8px;
+    font-size: 12px;
+    max-width: 500px;
+  }
+
+  .payslip h3 {
+    text-align: center;
+    font-size: 16px;
+    margin-bottom: 16px;
+    color: #000;
+    border-bottom: 2px solid #000;
+    padding-bottom: 8px;
+  }
+
+  .payslip table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 12px;
+  }
+
+  .payslip table th {
+    background: #f0f0f0;
+    padding: 6px 8px;
+    border: 1px solid #ccc;
+    font-weight: 700;
+  }
+
+  .payslip table td {
+    padding: 6px 8px;
+    border: 1px solid #ccc;
+  }
+
+  .payslip .total-row {
+    font-weight: 700;
+    background: #e8f5e9;
+  }
+
+  .divider {
+    height: 1px;
+    background: var(--border);
+    margin: 20px 0;
+  }
+
+  textarea {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    color: var(--text);
+    font-family: 'Noto Sans KR', sans-serif;
+    font-size: 14px;
+    outline: none;
+    resize: vertical;
+  }
+
+  textarea:focus { border-color: var(--accent); }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-icon">🤖</div>
+    급여·세금 자동화 에이전트
+  </div>
+  <div class="header-date" id="headerDate"></div>
+</header>
+
+<div class="app">
+  <!-- Sidebar -->
+  <nav class="sidebar">
+    <div class="nav-section">
+      <div class="nav-label">대시보드</div>
+      <div class="nav-item active" data-page="dashboard">
+        <span class="nav-icon">📊</span> 신고 일정 현황
+      </div>
+    </div>
+    <div class="nav-section">
+      <div class="nav-label">AI 에이전트</div>
+      <div class="nav-item" data-page="chat">
+        <span class="nav-icon">🤖</span> AI 상담 · 자동화
+      </div>
+    </div>
+    <div class="nav-section">
+      <div class="nav-label">4대보험</div>
+      <div class="nav-item" data-page="insurance">
+        <span class="nav-icon">🛡️</span> 보험료 계산
+        <span class="badge soon">D-8</span>
+      </div>
+    </div>
+    <div class="nav-section">
+      <div class="nav-label">세금 신고</div>
+      <div class="nav-item" data-page="withholding">
+        <span class="nav-icon">📋</span> 원천세 신고
+        <span class="badge">D-2</span>
+      </div>
+    </div>
+    <div class="nav-section">
+      <div class="nav-label">급여 관리</div>
+      <div class="nav-item" data-page="payslip">
+        <span class="nav-icon">💰</span> 급여명세서 생성
+      </div>
+    </div>
+    <div class="nav-section">
+      <div class="nav-label">지급명세서</div>
+      <div class="nav-item" data-page="simplified">
+        <span class="nav-icon">📑</span> 간이지급명세서
+        <span class="badge soon">3월</span>
+      </div>
+      <div class="nav-item" data-page="annual">
+        <span class="nav-icon">📃</span> 근로소득지급명세서
+        <span class="badge soon">3월</span>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Dashboard -->
+  <div class="main active" id="page-dashboard">
+    <div class="page-title">신고 일정 현황</div>
+    <div class="page-sub">2025년 2월 기준 · 주요 세무·4대보험 신고 일정</div>
+
+    <div class="grid-3" style="margin-bottom:20px;">
+      <div class="stat-card">
+        <div class="stat-label">이번 달 신고 건수</div>
+        <div class="stat-value">4</div>
+        <div class="stat-note">2월 마감 기준</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">긴급 마감 (D-7 이내)</div>
+        <div class="stat-value" style="color:var(--danger);">2</div>
+        <div class="stat-note">즉시 처리 필요</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">완료된 신고</div>
+        <div class="stat-value" style="color:var(--success);">1</div>
+        <div class="stat-note">이번 달 기준</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">📅 2월 신고 캘린더</div>
+
+      <div class="deadline-item">
+        <div class="deadline-date">02.10</div>
+        <div class="deadline-dot" style="background:var(--success)"></div>
+        <div class="deadline-info">
+          <div class="deadline-name">1월분 원천세 신고·납부</div>
+          <div class="deadline-org">국세청 홈택스</div>
+        </div>
+        <div class="deadline-status status-ok">완료</div>
+      </div>
+
+      <div class="deadline-item">
+        <div class="deadline-date">02.17</div>
+        <div class="deadline-dot" style="background:var(--danger)"></div>
+        <div class="deadline-info">
+          <div class="deadline-name">1월분 원천세 반기납부</div>
+          <div class="deadline-org">국세청 홈택스</div>
+        </div>
+        <div class="deadline-status status-urgent">D-2</div>
+      </div>
+
+      <div class="deadline-item">
+        <div class="deadline-date">02.25</div>
+        <div class="deadline-dot" style="background:var(--accent3)"></div>
+        <div class="deadline-info">
+          <div class="deadline-name">4대보험 2월분 보험료 납부</div>
+          <div class="deadline-org">국민건강보험공단</div>
+        </div>
+        <div class="deadline-status status-soon">D-10</div>
+      </div>
+
+      <div class="deadline-item">
+        <div class="deadline-date">03.10</div>
+        <div class="deadline-dot" style="background:var(--accent2)"></div>
+        <div class="deadline-info">
+          <div class="deadline-name">2024년 근로소득 지급명세서 제출</div>
+          <div class="deadline-org">국세청 홈택스</div>
+        </div>
+        <div class="deadline-status status-ok">준비중</div>
+      </div>
+
+      <div class="deadline-item">
+        <div class="deadline-date">03.10</div>
+        <div class="deadline-dot" style="background:var(--accent2)"></div>
+        <div class="deadline-info">
+          <div class="deadline-name">2월분 원천세 신고·납부</div>
+          <div class="deadline-org">국세청 홈택스</div>
+        </div>
+        <div class="deadline-status status-ok">준비중</div>
+      </div>
+
+      <div class="deadline-item">
+        <div class="deadline-date">01.31</div>
+        <div class="deadline-dot" style="background:var(--accent3)"></div>
+        <div class="deadline-info">
+          <div class="deadline-name">2024년 하반기 간이지급명세서 제출</div>
+          <div class="deadline-org">국세청 홈택스 (상반기: 7/31)</div>
+        </div>
+        <div class="deadline-status status-ok">완료</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">⚡ 빠른 실행</div>
+      <div style="display:flex; gap:10px; flex-wrap:wrap;">
+        <button class="btn btn-primary" onclick="navigate('insurance')">🛡️ 보험료 계산하기</button>
+        <button class="btn btn-secondary" onclick="navigate('withholding')">📋 원천세 신고서 작성</button>
+        <button class="btn btn-secondary" onclick="navigate('payslip')">💰 급여명세서 생성</button>
+        <button class="btn btn-secondary" onclick="navigate('simplified')">📑 간이지급명세서</button>
+        <button class="btn btn-secondary" onclick="navigate('annual')">📃 근로소득지급명세서</button>
+        <button class="btn btn-secondary" onclick="navigate('chat')">🤖 AI에게 질문하기</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- AI Chat -->
+  <div class="main" id="page-chat">
+    <div class="page-title">AI 상담 · 자동화</div>
+    <div class="page-sub">급여, 세금, 4대보험 관련 질문을 자유롭게 물어보세요</div>
+
+    <div class="card" style="height: calc(100vh - 200px); display:flex; flex-direction:column;">
+      <div class="chat-messages" id="chatMessages">
+        <div class="msg msg-ai">
+          안녕하세요! 급여·세금 자동화 AI 에이전트입니다. 🤖<br><br>
+          다음과 같은 내용을 도와드릴 수 있습니다:<br>
+          • 4대보험 보험료 계산 및 신고 안내<br>
+          • 원천세 계산 및 신고 절차<br>
+          • 급여 명세서 작성 도움<br>
+          • 세무·노무 관련 질문 답변<br><br>
+          무엇이든 질문해 주세요!
+        </div>
+      </div>
+      <div class="chat-input-area">
+        <textarea class="chat-input" id="chatInput" placeholder="질문을 입력하세요... (예: 월급 300만원 직원의 4대보험료는 얼마인가요?)" rows="2"></textarea>
+        <button class="btn btn-primary" id="sendBtn" onclick="sendChat()">전송</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Insurance Calculator -->
+  <div class="main" id="page-insurance">
+    <div class="page-title">4대보험 보험료 계산기</div>
+    <div class="page-sub">월 급여 기준 4대보험(국민연금·건강보험·고용보험·산재보험) 자동 계산</div>
+
+    <div class="grid-2">
+      <div>
+        <div class="card">
+          <div class="card-title">📝 입력 정보</div>
+          <div class="form-group">
+            <label>월 기본급 (원)</label>
+            <input type="number" id="baseSalary" placeholder="3,000,000" value="3000000">
+          </div>
+          <div class="form-group">
+            <label>직원 유형</label>
+            <select id="empType">
+              <option value="regular">정규직</option>
+              <option value="part">단시간 근로자</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>업종 산재보험료율</label>
+            <select id="industryRate">
+              <option value="0.007">일반 사무직 (0.7%)</option>
+              <option value="0.009">서비스업 (0.9%)</option>
+              <option value="0.011">제조업 (1.1%)</option>
+              <option value="0.018">건설업 (1.8%)</option>
+            </select>
+          </div>
+          <button class="btn btn-primary" style="width:100%" onclick="calcInsurance()">
+            🔢 보험료 계산하기
+          </button>
+        </div>
+      </div>
+
+      <div>
+        <div class="card" id="insResult" style="display:none;">
+          <div class="card-title">📊 계산 결과 <span style="font-size:11px; color:var(--text-muted); font-weight:400;" id="calcDate"></span></div>
+          <table class="ins-table">
+            <thead>
+              <tr>
+                <th>보험 종류</th>
+                <th>요율</th>
+                <th>근로자 부담</th>
+                <th>사업주 부담</th>
+              </tr>
+            </thead>
+            <tbody id="insTableBody"></tbody>
+          </table>
+          <div style="margin-top:14px;">
+            <button class="btn btn-secondary" onclick="generateInsReport()">📄 신고서 초안 생성</button>
+          </div>
+        </div>
+
+        <div class="card" id="insPlaceholder">
+          <div style="text-align:center; padding:40px 0; color:var(--text-muted);">
+            <div style="font-size:48px; margin-bottom:12px;">🛡️</div>
+            <div>급여를 입력하고 계산하기를 눌러주세요</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- AI Generated Report -->
+    <div class="card" id="insReport" style="display:none;">
+      <div class="card-title">📄 AI 생성 신고서 초안</div>
+      <div class="result-box" id="insReportContent">
+        <div class="loading"><span></span><span></span><span></span></div>
+      </div>
+      <div style="margin-top:12px; display:flex; gap:8px;">
+        <button class="btn btn-primary" onclick="copyReport('insReportContent')">📋 복사</button>
+        <button class="btn btn-secondary" onclick="navigate('chat')">🤖 AI에게 더 물어보기</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Withholding Tax -->
+  <div class="main" id="page-withholding">
+    <div class="page-title">원천세 신고서 작성</div>
+    <div class="page-sub">소득세 및 지방소득세 원천징수 신고 자동화</div>
+
+    <div class="tabs">
+      <div class="tab active" onclick="switchTab(this, 'wt-calc')">세액 계산</div>
+      <div class="tab" onclick="switchTab(this, 'wt-report')">신고서 초안</div>
+    </div>
+
+    <div id="wt-calc">
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-title">📝 소득 정보 입력</div>
+          <div class="form-group">
+            <label>소득 유형</label>
+            <select id="incomeType">
+              <option value="salary">근로소득</option>
+              <option value="business">사업소득</option>
+              <option value="etc">기타소득</option>
+              <option value="retirement">퇴직소득</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>총 지급액 (원)</label>
+            <input type="number" id="totalPay" placeholder="3,000,000" value="3000000">
+          </div>
+          <div class="form-group">
+            <label>부양가족 수 (본인 포함)</label>
+            <input type="number" id="dependents" value="1" min="1" max="10">
+          </div>
+          <div class="form-group">
+            <label>지급 연월</label>
+            <input type="month" id="payMonth" value="2025-01">
+          </div>
+          <button class="btn btn-primary" style="width:100%" onclick="calcWithholding()">
+            🔢 원천세 계산하기
+          </button>
+        </div>
+
+        <div class="card" id="wtResult" style="display:none;">
+          <div class="card-title">💰 원천징수세액</div>
+          <div id="wtResultContent"></div>
+        </div>
+
+        <div class="card" id="wtPlaceholder">
+          <div style="text-align:center; padding:40px 0; color:var(--text-muted);">
+            <div style="font-size:48px; margin-bottom:12px;">📋</div>
+            <div>소득 정보를 입력하고 계산해주세요</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="wt-report" style="display:none;">
+      <div class="card">
+        <div class="card-title">📄 원천세 신고서 초안 (AI 생성)</div>
+        <div class="form-group">
+          <label>신고 유형</label>
+          <select id="reportType">
+            <option value="monthly">매월 신고 (일반)</option>
+            <option value="biannual">반기 신고</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>귀속 연월</label>
+          <input type="month" id="reportMonth" value="2025-01">
+        </div>
+        <div class="form-group">
+          <label>총 지급인원 수</label>
+          <input type="number" id="empCount" value="5">
+        </div>
+        <div class="form-group">
+          <label>총 지급금액 (원)</label>
+          <input type="number" id="totalPayAmount" value="15000000">
+        </div>
+        <button class="btn btn-primary" onclick="generateWTReport()">🤖 AI 신고서 초안 생성</button>
+      </div>
+
+      <div class="card" id="wtReportCard" style="display:none;">
+        <div class="card-title">📄 신고서 초안</div>
+        <div class="result-box" id="wtReportContent"></div>
+        <div style="margin-top:12px;">
+          <button class="btn btn-primary" onclick="copyReport('wtReportContent')">📋 복사</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Payslip Generator -->
+  <div class="main" id="page-payslip">
+    <div class="page-title">급여명세서 생성</div>
+    <div class="page-sub">직접 입력 또는 엑셀 업로드로 급여명세서를 일괄 생성합니다</div>
+
+    <div class="tabs">
+      <div class="tab active" onclick="switchTabGeneric(this, 'payslip-tabs', 'payslip-manual')">✏️ 직접 입력</div>
+      <div class="tab" onclick="switchTabGeneric(this, 'payslip-tabs', 'payslip-excel')">📊 엑셀 업로드</div>
+    </div>
+
+    <!-- 직접 입력 탭 -->
+    <div id="payslip-manual">
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-title">👤 직원 및 급여 정보</div>
+          <div class="form-group">
+            <label>직원 이름</label>
+            <input type="text" id="empName" placeholder="홍길동">
+          </div>
+          <div class="form-group">
+            <label>부서</label>
+            <input type="text" id="empDept" placeholder="경영지원팀">
+          </div>
+          <div class="form-group">
+            <label>지급 연월</label>
+            <input type="month" id="slipMonth" value="2025-01">
+          </div>
+          <div class="form-group">
+            <label>기본급 (원)</label>
+            <input type="number" id="slipBaseSalary" value="3000000">
+          </div>
+          <div class="form-group">
+            <label>식대 (원)</label>
+            <input type="number" id="slipMeal" value="200000">
+          </div>
+          <div class="form-group">
+            <label>교통비 (원)</label>
+            <input type="number" id="slipTransport" value="100000">
+          </div>
+          <div class="form-group">
+            <label>연장근무수당 (원)</label>
+            <input type="number" id="slipOvertime" value="0">
+          </div>
+          <div class="form-group">
+            <label>부양가족 수 (본인 포함)</label>
+            <input type="number" id="slipDependents" value="1" min="1">
+          </div>
+          <button class="btn btn-primary" style="width:100%" onclick="generatePayslip()">
+            💰 급여명세서 생성
+          </button>
+        </div>
+
+        <div>
+          <div class="card" id="payslipCard" style="display:none;">
+            <div class="card-title">📄 급여명세서 미리보기</div>
+            <div class="payslip" id="payslipContent"></div>
+            <div style="margin-top:14px; display:flex; gap:8px;">
+              <button class="btn btn-primary" onclick="printPayslip()">🖨️ 인쇄</button>
+              <button class="btn btn-secondary" onclick="aiEnhancePayslip()">🤖 AI 검토 요청</button>
+            </div>
+          </div>
+          <div class="card" id="payslipPlaceholder">
+            <div style="text-align:center; padding:40px 0; color:var(--text-muted);">
+              <div style="font-size:48px; margin-bottom:12px;">💰</div>
+              <div>정보를 입력하고 생성하기를 눌러주세요</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 엑셀 업로드 탭 -->
+    <div id="payslip-excel" style="display:none;">
+      <div class="card">
+        <div class="card-title">📥 엑셀 양식 다운로드</div>
+        <div style="color:var(--text-muted); font-size:13px; margin-bottom:14px;">
+          아래 버튼으로 양식을 다운로드하고, 직원 정보를 입력한 후 업로드하세요.<br>
+          <strong style="color:var(--accent)">열 순서를 바꾸지 마세요!</strong> — 이름, 부서, 기본급, 식대, 교통비, 연장수당, 부양가족수, 지급연월
+        </div>
+        <div style="display:flex; gap:10px; flex-wrap:wrap;">
+          <button class="btn btn-primary" onclick="downloadExcelTemplate()">⬇️ 엑셀 양식 다운로드</button>
+          <button class="btn btn-secondary" onclick="downloadCSVTemplate()">⬇️ CSV 양식 다운로드</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">📤 파일 업로드</div>
+        <div style="margin-bottom:14px;">
+          <div class="form-group">
+            <label>지급 연월 (파일 전체 적용)</label>
+            <input type="month" id="excelSlipMonth" value="2025-01">
+          </div>
+        </div>
+
+        <!-- 드래그앤드롭 업로드 영역 -->
+        <div id="dropZone" onclick="document.getElementById('excelFileInput').click()"
+          style="border:2px dashed var(--border); border-radius:12px; padding:40px; text-align:center; cursor:pointer; transition:all 0.2s;">
+          <div style="font-size:40px; margin-bottom:10px;">📂</div>
+          <div style="font-weight:600; margin-bottom:6px;">엑셀 또는 CSV 파일을 여기에 끌어다 놓으세요</div>
+          <div style="font-size:12px; color:var(--text-muted);">.xlsx, .xls, .csv 파일 지원 · 클릭해서 파일 선택</div>
+          <input type="file" id="excelFileInput" accept=".xlsx,.xls,.csv" style="display:none;" onchange="handleExcelUpload(event)">
+        </div>
+
+        <div id="excelParseResult" style="display:none; margin-top:16px;">
+          <div style="display:flex; align-items:center; gap:8px; margin-bottom:12px;">
+            <div style="color:var(--success); font-weight:700; font-size:15px;" id="excelParseStatus"></div>
+          </div>
+          <div style="overflow-x:auto;">
+            <table class="ins-table" id="excelPreviewTable"></table>
+          </div>
+          <div style="margin-top:14px; display:flex; gap:8px; flex-wrap:wrap;">
+            <button class="btn btn-primary" onclick="generateAllPayslips()">💰 전체 급여명세서 생성</button>
+            <button class="btn btn-secondary" onclick="resetExcelUpload()">🔄 다시 업로드</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 생성된 명세서 목록 -->
+      <div class="card" id="bulkPayslipList" style="display:none;">
+        <div class="card-title">📄 생성된 급여명세서 목록</div>
+        <div style="display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap;">
+          <button class="btn btn-primary" onclick="printAllPayslips()">🖨️ 전체 인쇄</button>
+          <button class="btn btn-secondary" onclick="exportAllToCSV()">📊 CSV 내보내기</button>
+        </div>
+        <div id="bulkPayslipContent"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 간이지급명세서 -->
+  <div class="main" id="page-simplified">
+    <div class="page-title">간이지급명세서 신고</div>
+    <div class="page-sub">상용근로자 반기별 / 일용근로자·사업소득자 매월 제출 (홈택스 신고 가이드)</div>
+
+    <div class="tabs">
+      <div class="tab active" onclick="switchTabGeneric(this, 'simp-tabs', 'simp-input')">📝 명세서 작성</div>
+      <div class="tab" onclick="switchTabGeneric(this, 'simp-tabs', 'simp-guide')">📋 신고 절차 안내</div>
+      <div class="tab" onclick="switchTabGeneric(this, 'simp-tabs', 'simp-preview')">👁️ 미리보기</div>
+    </div>
+
+    <div id="simp-input">
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-title">🏢 사업자 정보</div>
+          <div class="form-group">
+            <label>사업자등록번호</label>
+            <input type="text" id="simpBizNo" placeholder="000-00-00000">
+          </div>
+          <div class="form-group">
+            <label>상호(법인명)</label>
+            <input type="text" id="simpBizName" placeholder="(주)예시회사">
+          </div>
+          <div class="form-group">
+            <label>대표자명</label>
+            <input type="text" id="simpRepName" placeholder="홍길동">
+          </div>
+          <div class="form-group">
+            <label>신고 유형</label>
+            <select id="simpType">
+              <option value="half_employed">상용근로소득 (반기별)</option>
+              <option value="daily">일용근로소득 (매월)</option>
+              <option value="business">사업소득 (매월)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>귀속 기간</label>
+            <select id="simpPeriod">
+              <option value="2025-H1">2025년 상반기 (1~6월)</option>
+              <option value="2025-H2">2025년 하반기 (7~12월)</option>
+              <option value="2024-H2">2024년 하반기 (7~12월)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">👥 근로자 명세 입력</div>
+          <div id="simpEmpList">
+            <div class="simp-emp-row" style="border:1px solid var(--border); border-radius:8px; padding:12px; margin-bottom:10px;">
+              <div class="grid-2" style="gap:8px;">
+                <div class="form-group" style="margin-bottom:8px;">
+                  <label>성명</label>
+                  <input type="text" class="simp-name" placeholder="홍길동">
+                </div>
+                <div class="form-group" style="margin-bottom:8px;">
+                  <label>주민등록번호</label>
+                  <input type="text" class="simp-ssn" placeholder="000000-0000000">
+                </div>
+                <div class="form-group" style="margin-bottom:8px;">
+                  <label>총급여 (원)</label>
+                  <input type="number" class="simp-salary" placeholder="18000000">
+                </div>
+                <div class="form-group" style="margin-bottom:8px;">
+                  <label>소득세 (원)</label>
+                  <input type="number" class="simp-tax" placeholder="200000">
+                </div>
+              </div>
+            </div>
+          </div>
+          <button class="btn btn-secondary" style="width:100%; margin-bottom:10px;" onclick="addSimpEmpRow()">+ 근로자 추가</button>
+          <button class="btn btn-primary" style="width:100%;" onclick="generateSimpStatement()">📑 간이지급명세서 생성</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="simp-guide" style="display:none;">
+      <div class="card">
+        <div class="card-title">📋 간이지급명세서 신고 절차 (홈택스)</div>
+        <div style="display:grid; gap:12px;">
+          <div style="display:flex; gap:14px; align-items:flex-start;">
+            <div style="width:28px; height:28px; border-radius:50%; background:var(--accent); color:#0a0e1a; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:13px; flex-shrink:0;">1</div>
+            <div>
+              <div style="font-weight:600; margin-bottom:4px;">홈택스 접속 및 로그인</div>
+              <div style="color:var(--text-muted); font-size:13px;">hometax.go.kr 접속 → 공동인증서·간편인증으로 로그인</div>
+            </div>
+          </div>
+          <div style="display:flex; gap:14px; align-items:flex-start;">
+            <div style="width:28px; height:28px; border-radius:50%; background:var(--accent); color:#0a0e1a; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:13px; flex-shrink:0;">2</div>
+            <div>
+              <div style="font-weight:600; margin-bottom:4px;">메뉴 이동</div>
+              <div style="color:var(--text-muted); font-size:13px;">신고/납부 → 지급명세서 → <strong style="color:var(--accent)">간이지급명세서 제출</strong></div>
+            </div>
+          </div>
+          <div style="display:flex; gap:14px; align-items:flex-start;">
+            <div style="width:28px; height:28px; border-radius:50%; background:var(--accent); color:#0a0e1a; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:13px; flex-shrink:0;">3</div>
+            <div>
+              <div style="font-weight:600; margin-bottom:4px;">신고 유형 선택</div>
+              <div style="color:var(--text-muted); font-size:13px;">근로소득(상용) / 일용근로소득 / 사업소득 중 선택</div>
+            </div>
+          </div>
+          <div style="display:flex; gap:14px; align-items:flex-start;">
+            <div style="width:28px; height:28px; border-radius:50%; background:var(--accent); color:#0a0e1a; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:13px; flex-shrink:0;">4</div>
+            <div>
+              <div style="font-weight:600; margin-bottom:4px;">근로자 정보 입력 또는 파일 업로드</div>
+              <div style="color:var(--text-muted); font-size:13px;">직접 입력 또는 CSV/TXT 파일 일괄 업로드 (10인 이상 권장)</div>
+            </div>
+          </div>
+          <div style="display:flex; gap:14px; align-items:flex-start;">
+            <div style="width:28px; height:28px; border-radius:50%; background:var(--accent); color:#0a0e1a; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:13px; flex-shrink:0;">5</div>
+            <div>
+              <div style="font-weight:600; margin-bottom:4px;">제출 완료 및 접수증 저장</div>
+              <div style="color:var(--text-muted); font-size:13px;">제출 후 접수번호 확인 및 접수증 PDF 저장</div>
+            </div>
+          </div>
+        </div>
+        <div style="margin-top:16px; background:rgba(245,158,11,0.1); border:1px solid rgba(245,158,11,0.3); border-radius:8px; padding:12px;">
+          <div style="color:var(--accent3); font-weight:700; margin-bottom:6px;">⚠️ 제출 기한 주의</div>
+          <div style="font-size:13px; color:var(--text-muted);">
+            • 상용근로소득: 상반기(1~6월) → 7월 31일 / 하반기(7~12월) → 다음해 1월 31일<br>
+            • 일용근로·사업소득: 지급월 다음달 말일까지<br>
+            • 미제출 시 건당 <strong style="color:var(--danger)">20만원</strong> 가산세 부과
+          </div>
+        </div>
+        <div style="margin-top:12px;">
+          <button class="btn btn-primary" onclick="generateSimpGuideAI()">🤖 AI 상세 안내 받기</button>
+        </div>
+        <div class="result-box" id="simpGuideResult" style="margin-top:12px; display:none;"></div>
+      </div>
+    </div>
+
+    <div id="simp-preview" style="display:none;">
+      <div class="card" id="simpPreviewCard">
+        <div style="text-align:center; padding:40px 0; color:var(--text-muted);">
+          <div style="font-size:48px; margin-bottom:12px;">📑</div>
+          <div>명세서 작성 탭에서 정보를 입력하고 생성하세요</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 근로소득지급명세서 -->
+  <div class="main" id="page-annual">
+    <div class="page-title">근로소득 지급명세서 신고</div>
+    <div class="page-sub">연간 근로소득 지급명세서 — 매년 3월 10일까지 홈택스 제출</div>
+
+    <div class="tabs">
+      <div class="tab active" onclick="switchTabGeneric(this, 'annual-tabs', 'annual-input')">📝 명세서 작성</div>
+      <div class="tab" onclick="switchTabGeneric(this, 'annual-tabs', 'annual-guide')">📋 신고 절차 안내</div>
+      <div class="tab" onclick="switchTabGeneric(this, 'annual-tabs', 'annual-preview')">👁️ 미리보기</div>
+    </div>
+
+    <div id="annual-input">
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-title">🏢 원천징수의무자 정보</div>
+          <div class="form-group">
+            <label>사업자등록번호</label>
+            <input type="text" id="annualBizNo" placeholder="000-00-00000">
+          </div>
+          <div class="form-group">
+            <label>상호(법인명)</label>
+            <input type="text" id="annualBizName" placeholder="(주)예시회사">
+          </div>
+          <div class="form-group">
+            <label>대표자명</label>
+            <input type="text" id="annualRepName" placeholder="홍길동">
+          </div>
+          <div class="form-group">
+            <label>귀속 연도</label>
+            <select id="annualYear">
+              <option value="2024">2024년</option>
+              <option value="2023">2023년</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>근무지 유형</label>
+            <select id="annualWorkType">
+              <option value="main">주(현) 근무지</option>
+              <option value="sub">종(전) 근무지</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">👤 근로자 연간 소득 정보</div>
+          <div id="annualEmpList">
+            <div class="annual-emp-row" style="border:1px solid var(--border); border-radius:8px; padding:12px; margin-bottom:10px;">
+              <div class="grid-2" style="gap:8px;">
+                <div class="form-group" style="margin-bottom:8px;">
+                  <label>성명</label>
+                  <input type="text" class="ann-name" placeholder="홍길동">
+                </div>
+                <div class="form-group" style="margin-bottom:8px;">
+                  <label>주민등록번호</label>
+                  <input type="text" class="ann-ssn" placeholder="000000-0000000">
+                </div>
+                <div class="form-group" style="margin-bottom:8px;">
+                  <label>총급여 (원)</label>
+                  <input type="number" class="ann-gross" placeholder="36000000">
+                </div>
+                <div class="form-group" style="margin-bottom:8px;">
+                  <label>근로소득공제 (원)</label>
+                  <input type="number" class="ann-deduct" placeholder="12750000">
+                </div>
+                <div class="form-group" style="margin-bottom:8px;">
+                  <label>결정세액 (원)</label>
+                  <input type="number" class="ann-final-tax" placeholder="800000">
+                </div>
+                <div class="form-group" style="margin-bottom:8px;">
+                  <label>기납부세액 (원)</label>
+                  <input type="number" class="ann-paid-tax" placeholder="850000">
+                </div>
+              </div>
+              <div style="font-size:12px; color:var(--text-muted); margin-top:4px;">
+                근로소득공제 자동계산: <button class="btn btn-secondary" style="padding:3px 8px; font-size:11px;" onclick="autoCalcDeduction(this)">자동계산</button>
+              </div>
+            </div>
+          </div>
+          <button class="btn btn-secondary" style="width:100%; margin-bottom:10px;" onclick="addAnnualEmpRow()">+ 근로자 추가</button>
+          <button class="btn btn-primary" style="width:100%;" onclick="generateAnnualStatement()">📃 지급명세서 생성</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="annual-guide" style="display:none;">
+      <div class="card">
+        <div class="card-title">📋 근로소득 지급명세서 신고 절차</div>
+        <div style="display:grid; gap:12px;">
+          <div style="display:flex; gap:14px; align-items:flex-start;">
+            <div style="width:28px; height:28px; border-radius:50%; background:var(--accent2); color:white; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:13px; flex-shrink:0;">1</div>
+            <div>
+              <div style="font-weight:600; margin-bottom:4px;">연말정산 완료 후 진행</div>
+              <div style="color:var(--text-muted); font-size:13px;">2월 급여 지급 시 연말정산 환급/추가징수 반영 완료 후 진행</div>
+            </div>
+          </div>
+          <div style="display:flex; gap:14px; align-items:flex-start;">
+            <div style="width:28px; height:28px; border-radius:50%; background:var(--accent2); color:white; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:13px; flex-shrink:0;">2</div>
+            <div>
+              <div style="font-weight:600; margin-bottom:4px;">홈택스 메뉴 접속</div>
+              <div style="color:var(--text-muted); font-size:13px;">신고/납부 → 지급명세서 → <strong style="color:var(--accent2)">근로소득 지급명세서 제출</strong></div>
+            </div>
+          </div>
+          <div style="display:flex; gap:14px; align-items:flex-start;">
+            <div style="width:28px; height:28px; border-radius:50%; background:var(--accent2); color:white; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:13px; flex-shrink:0;">3</div>
+            <div>
+              <div style="font-weight:600; margin-bottom:4px;">원천징수영수증 내용 입력</div>
+              <div style="color:var(--text-muted); font-size:13px;">총급여, 근로소득공제, 각종 소득·세액공제, 결정세액, 기납부세액 입력</div>
+            </div>
+          </div>
+          <div style="display:flex; gap:14px; align-items:flex-start;">
+            <div style="width:28px; height:28px; border-radius:50%; background:var(--accent2); color:white; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:13px; flex-shrink:0;">4</div>
+            <div>
+              <div style="font-weight:600; margin-bottom:4px;">파일 업로드 (다수 직원)</div>
+              <div style="color:var(--text-muted); font-size:13px;">국세청 제공 서식 파일(.csv)을 사용해 일괄 업로드 가능</div>
+            </div>
+          </div>
+          <div style="display:flex; gap:14px; align-items:flex-start;">
+            <div style="width:28px; height:28px; border-radius:50%; background:var(--accent2); color:white; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:13px; flex-shrink:0;">5</div>
+            <div>
+              <div style="font-weight:600; margin-bottom:4px;">제출 및 접수 확인</div>
+              <div style="color:var(--text-muted); font-size:13px;">제출 완료 후 접수번호 저장, 근로자에게 원천징수영수증 교부</div>
+            </div>
+          </div>
+        </div>
+        <div style="margin-top:16px; background:rgba(239,68,68,0.08); border:1px solid rgba(239,68,68,0.3); border-radius:8px; padding:12px;">
+          <div style="color:var(--danger); font-weight:700; margin-bottom:6px;">🚨 마감일 및 가산세</div>
+          <div style="font-size:13px; color:var(--text-muted);">
+            • 제출 기한: 지급연도 다음해 <strong style="color:var(--danger)">3월 10일</strong>까지<br>
+            • 기한 내 미제출: 지급금액의 <strong style="color:var(--danger)">1%</strong> 가산세<br>
+            • 불분명 기재: 지급금액의 <strong style="color:var(--danger)">1%</strong> 가산세<br>
+            • 연말정산 환급세액은 다음 달 원천세 신고 시 차감
+          </div>
+        </div>
+        <div style="margin-top:12px; display:flex; gap:8px;">
+          <button class="btn btn-primary" onclick="generateAnnualGuideAI()">🤖 AI 상세 안내 받기</button>
+          <button class="btn btn-secondary" onclick="navigate('withholding')">📋 원천세 신고 바로가기</button>
+        </div>
+        <div class="result-box" id="annualGuideResult" style="margin-top:12px; display:none;"></div>
+      </div>
+    </div>
+
+    <div id="annual-preview" style="display:none;">
+      <div class="card" id="annualPreviewCard">
+        <div style="text-align:center; padding:40px 0; color:var(--text-muted);">
+          <div style="font-size:48px; margin-bottom:12px;">📃</div>
+          <div>명세서 작성 탭에서 정보를 입력하고 생성하세요</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ── Date ──────────────────────────────────────────────
+const now = new Date();
+document.getElementById('headerDate').textContent =
+  now.toLocaleDateString('ko-KR', {year:'numeric', month:'long', day:'numeric', weekday:'long'});
+
+// ── Navigation ────────────────────────────────────────
+function navigate(page) {
+  document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.main').forEach(el => el.classList.remove('active'));
+  document.querySelector(`[data-page="${page}"]`).classList.add('active');
+  document.getElementById(`page-${page}`).classList.add('active');
+}
+
+document.querySelectorAll('.nav-item').forEach(el => {
+  el.addEventListener('click', () => navigate(el.dataset.page));
+});
+
+// ── Tabs ─────────────────────────────────────────────
+function switchTab(el, tabId) {
+  el.closest('.tabs').querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  const parent = el.closest('.main');
+  parent.querySelectorAll('[id^="wt-"]').forEach(t => t.style.display = 'none');
+  document.getElementById(tabId).style.display = 'block';
+}
+
+// ── 4대보험 계산 ──────────────────────────────────────
+const INS_RATES = {
+  pension: { emp: 0.045, emp_label: '4.5%', biz: 0.045, biz_label: '4.5%', name: '국민연금' },
+  health:  { emp: 0.03545, emp_label: '3.545%', biz: 0.03545, biz_label: '3.545%', name: '건강보험' },
+  ltc:     { emp: 0.00454, emp_label: '0.454%', biz: 0.00454, biz_label: '0.454%', name: '장기요양보험' },
+  employ:  { emp: 0.009, emp_label: '0.9%', biz: 0.0115, biz_label: '1.15%', name: '고용보험' },
+};
+
+function calcInsurance() {
+  const salary = parseInt(document.getElementById('baseSalary').value) || 0;
+  const industryRate = parseFloat(document.getElementById('industryRate').value);
+
+  let rows = '';
+  let totalEmp = 0, totalBiz = 0;
+
+  for (const [key, r] of Object.entries(INS_RATES)) {
+    const base = key === 'ltc' ? Math.round(salary * 0.07090) : salary;
+    const emp = Math.round(base * r.emp);
+    const biz = Math.round(base * r.biz);
+    totalEmp += emp;
+    totalBiz += biz;
+    rows += `<tr>
+      <td>${r.name}</td>
+      <td style="color:var(--text-muted)">${r.emp_label} / ${r.biz_label}</td>
+      <td>${emp.toLocaleString()}원</td>
+      <td>${biz.toLocaleString()}원</td>
+    </tr>`;
+  }
+
+  const industryAmt = Math.round(salary * industryRate);
+  totalBiz += industryAmt;
+  rows += `<tr>
+    <td>산재보험</td>
+    <td style="color:var(--text-muted)">0% / ${(industryRate*100).toFixed(1)}%</td>
+    <td>-</td>
+    <td>${industryAmt.toLocaleString()}원</td>
+  </tr>`;
+
+  rows += `<tr class="ins-row-total">
+    <td colspan="2">합계</td>
+    <td>${totalEmp.toLocaleString()}원</td>
+    <td>${totalBiz.toLocaleString()}원</td>
+  </tr>`;
+
+  document.getElementById('insTableBody').innerHTML = rows;
+  document.getElementById('calcDate').textContent = `(${now.getFullYear()}년 기준)`;
+  document.getElementById('insResult').style.display = 'block';
+  document.getElementById('insPlaceholder').style.display = 'none';
+}
+
+async function generateInsReport() {
+  const salary = parseInt(document.getElementById('baseSalary').value) || 0;
+  document.getElementById('insReport').style.display = 'block';
+  document.getElementById('insReportContent').innerHTML = '<div class="loading"><span></span><span></span><span></span></div> AI가 신고서를 작성하고 있습니다...';
+
+  const prompt = `당신은 한국 4대보험 전문가입니다. 아래 정보로 4대보험 신고 안내문을 작성해주세요.
+
+월 급여: ${salary.toLocaleString()}원
+기준 연도: 2025년
+
+다음을 포함해 주세요:
+1. 4대보험 보험료 상세 내역
+2. 신고 기관 및 방법 (국민건강보험공단, 국민연금공단, 근로복지공단)
+3. 납부 기한
+4. 유의사항`;
+
+  await callClaude(prompt, 'insReportContent');
+}
+
+// ── 원천세 계산 ──────────────────────────────────────
+const WT_TABLE = [
+  { min: 0, max: 14000000, rate: 0.06, deduct: 0 },
+  { min: 14000000, max: 50000000, rate: 0.15, deduct: 1260000 },
+  { min: 50000000, max: 88000000, rate: 0.24, deduct: 5760000 },
+  { min: 88000000, max: 150000000, rate: 0.35, deduct: 15440000 },
+  { min: 150000000, max: 300000000, rate: 0.38, deduct: 19940000 },
+  { min: 300000000, max: 500000000, rate: 0.40, deduct: 25940000 },
+  { min: 500000000, max: Infinity, rate: 0.42, deduct: 35940000 },
+];
+
+function calcWithholding() {
+  const gross = parseInt(document.getElementById('totalPay').value) || 0;
+  const incomeType = document.getElementById('incomeType').value;
+  const deps = parseInt(document.getElementById('dependents').value) || 1;
+
+  let incomeTax = 0, label = '';
+
+  if (incomeType === 'salary') {
+    // 간이세액표 근사치 계산
+    const annual = gross * 12;
+    const deduction = Math.min(annual * 0.7, 20000000); // 근로소득공제 근사
+    const taxableIncome = Math.max(0, annual - deduction - (1500000 * deps));
+    let annualTax = 0;
+    for (const bracket of WT_TABLE) {
+      if (taxableIncome > bracket.min) {
+        annualTax = Math.min(taxableIncome, bracket.max) * bracket.rate - bracket.deduct;
+      }
+    }
+    incomeTax = Math.max(0, Math.round(annualTax / 12));
+    label = '근로소득';
+  } else if (incomeType === 'business') {
+    incomeTax = Math.round(gross * 0.033);
+    label = '사업소득';
+  } else if (incomeType === 'etc') {
+    const etcDeduction = Math.min(gross * 0.6, gross - 1500000);
+    incomeTax = Math.max(0, Math.round((gross - etcDeduction) * 0.20));
+    label = '기타소득';
+  }
+
+  const localTax = Math.round(incomeTax * 0.1);
+  const total = incomeTax + localTax;
+  const netPay = gross - total;
+
+  const html = `
+    <table class="ins-table">
+      <tr><th>항목</th><th>금액</th></tr>
+      <tr><td>총 지급액</td><td>${gross.toLocaleString()}원</td></tr>
+      <tr><td>소득세 (${label})</td><td style="color:var(--danger)">${incomeTax.toLocaleString()}원</td></tr>
+      <tr><td>지방소득세 (10%)</td><td style="color:var(--danger)">${localTax.toLocaleString()}원</td></tr>
+      <tr class="ins-row-total"><td>원천징수 합계</td><td>${total.toLocaleString()}원</td></tr>
+      <tr><td style="color:var(--success)">실수령액</td><td style="color:var(--success); font-weight:700">${netPay.toLocaleString()}원</td></tr>
+    </table>
+    <div style="margin-top:12px;">
+      <button class="btn btn-secondary" onclick="switchTab(document.querySelectorAll('.tab')[1], 'wt-report')">📄 신고서 초안 생성</button>
+    </div>`;
+
+  document.getElementById('wtResult').innerHTML = `<div class="card-title">💰 원천징수세액</div>` + html;
+  document.getElementById('wtResult').style.display = 'block';
+  document.getElementById('wtPlaceholder').style.display = 'none';
+}
+
+async function generateWTReport() {
+  const reportType = document.getElementById('reportType').value;
+  const month = document.getElementById('reportMonth').value;
+  const count = document.getElementById('empCount').value;
+  const total = parseInt(document.getElementById('totalPayAmount').value) || 0;
+
+  document.getElementById('wtReportCard').style.display = 'block';
+  document.getElementById('wtReportContent').innerHTML = '<div class="loading"><span></span><span></span><span></span></div>';
+
+  const prompt = `한국 원천세 신고 전문가로서 아래 정보를 바탕으로 원천세 신고서 작성 가이드를 제공해주세요.
+
+신고 유형: ${reportType === 'monthly' ? '매월 신고' : '반기 신고'}
+귀속 연월: ${month}
+지급 인원: ${count}명
+총 지급금액: ${total.toLocaleString()}원
+
+포함 내용:
+1. 홈택스 신고 절차 (단계별)
+2. 예상 소득세 및 지방소득세 (총액의 약 3.3% 기준)
+3. 납부 기한 및 가산세 주의사항
+4. 신고 시 자주 하는 실수`;
+
+  await callClaude(prompt, 'wtReportContent');
+}
+
+// ── 급여명세서 ──────────────────────────────────────
+function generatePayslip() {
+  const name = document.getElementById('empName').value || '홍길동';
+  const dept = document.getElementById('empDept').value || '미입력';
+  const month = document.getElementById('slipMonth').value;
+  const base = parseInt(document.getElementById('slipBaseSalary').value) || 0;
+  const meal = parseInt(document.getElementById('slipMeal').value) || 0;
+  const transport = parseInt(document.getElementById('slipTransport').value) || 0;
+  const overtime = parseInt(document.getElementById('slipOvertime').value) || 0;
+  const deps = parseInt(document.getElementById('slipDependents').value) || 1;
+
+  const gross = base + meal + transport + overtime;
+
+  // 4대보험 (기본급 기준)
+  const pension = Math.round(base * 0.045);
+  const health = Math.round(base * 0.03545);
+  const ltc = Math.round(base * 0.07090 * 0.00454);
+  const employ = Math.round(base * 0.009);
+
+  // 소득세 근사 (간이세액표)
+  const annual = base * 12;
+  const deduction = Math.min(annual * 0.7, 20000000);
+  const taxable = Math.max(0, annual - deduction - (1500000 * deps));
+  let annualTax = 0;
+  for (const b of WT_TABLE) {
+    if (taxable > b.min) annualTax = Math.min(taxable, b.max) * b.rate - b.deduct;
+  }
+  const incomeTax = Math.max(0, Math.round(annualTax / 12));
+  const localTax = Math.round(incomeTax * 0.1);
+
+  const totalDeduction = pension + health + ltc + employ + incomeTax + localTax;
+  const netPay = gross - totalDeduction;
+  const [y, m] = month.split('-');
+
+  const html = `
+    <h3>${y}년 ${m}월 급여명세서</h3>
+    <table>
+      <tr><th colspan="2">인적 사항</th></tr>
+      <tr><td>성명</td><td>${name}</td></tr>
+      <tr><td>부서</td><td>${dept}</td></tr>
+      <tr><td>지급일</td><td>${y}년 ${m}월 25일</td></tr>
+    </table>
+    <table>
+      <tr><th>지급 항목</th><th>금액</th><th>공제 항목</th><th>금액</th></tr>
+      <tr><td>기본급</td><td>${base.toLocaleString()}</td><td>국민연금</td><td>${pension.toLocaleString()}</td></tr>
+      <tr><td>식대</td><td>${meal.toLocaleString()}</td><td>건강보험</td><td>${health.toLocaleString()}</td></tr>
+      <tr><td>교통비</td><td>${transport.toLocaleString()}</td><td>장기요양보험</td><td>${ltc.toLocaleString()}</td></tr>
+      <tr><td>연장수당</td><td>${overtime.toLocaleString()}</td><td>고용보험</td><td>${employ.toLocaleString()}</td></tr>
+      <tr><td></td><td></td><td>소득세</td><td>${incomeTax.toLocaleString()}</td></tr>
+      <tr><td></td><td></td><td>지방소득세</td><td>${localTax.toLocaleString()}</td></tr>
+      <tr class="total-row"><td>지급 합계</td><td>${gross.toLocaleString()}</td><td>공제 합계</td><td>${totalDeduction.toLocaleString()}</td></tr>
+    </table>
+    <table>
+      <tr class="total-row"><th colspan="2">실수령액</th><th colspan="2" style="font-size:15px">${netPay.toLocaleString()} 원</th></tr>
+    </table>
+    <p style="text-align:center; margin-top:12px; color:#666; font-size:11px;">* 본 명세서는 자동 계산 결과이며, 실제 금액과 차이가 있을 수 있습니다.</p>`;
+
+  document.getElementById('payslipContent').innerHTML = html;
+  document.getElementById('payslipCard').style.display = 'block';
+  document.getElementById('payslipPlaceholder').style.display = 'none';
+}
+
+function printPayslip() {
+  const content = document.getElementById('payslipContent').innerHTML;
+  const win = window.open('', '_blank');
+  win.document.write(`<html><head><title>급여명세서</title>
+    <style>
+      body { font-family: 'Noto Sans KR', sans-serif; padding: 40px; font-size: 13px; }
+      table { width: 100%; border-collapse: collapse; margin-bottom: 16px; }
+      th, td { border: 1px solid #ccc; padding: 6px 10px; }
+      th { background: #f0f0f0; font-weight: 700; }
+      .total-row { font-weight: 700; background: #e8f5e9; }
+      h3 { text-align: center; margin-bottom: 20px; font-size: 18px; border-bottom: 2px solid #000; padding-bottom: 10px; }
+    </style></head><body>${content}</body></html>`);
+  win.document.close();
+  win.print();
+}
+
+async function aiEnhancePayslip() {
+  navigate('chat');
+  document.getElementById('chatInput').value = '방금 생성된 급여명세서를 검토해주세요. 세금 계산이 맞는지 확인하고 주의사항을 알려주세요.';
+  sendChat();
+}
+
+// ── AI Chat ──────────────────────────────────────────
+async function sendChat() {
+  const input = document.getElementById('chatInput');
+  const msg = input.value.trim();
+  if (!msg) return;
+
+  appendMsg(msg, 'user');
+  input.value = '';
+
+  const aiDiv = appendMsg('<div class="loading"><span></span><span></span><span></span></div>', 'ai');
+
+  const systemPrompt = `당신은 한국 급여·세금 전문 AI 에이전트입니다. 다음 분야를 전문으로 합니다:
+- 4대보험 (국민연금, 건강보험, 고용보험, 산재보험) 신고 및 계산
+- 원천세 신고 (소득세, 지방소득세)
+- 급여 명세서 작성
+- 세무·노무 관련 법규 안내
+
+항상 한국어로 답변하고, 구체적인 수치와 신고 절차를 포함하세요. 
+복잡한 세무 문제는 전문 세무사 상담을 권장하세요.`;
+
+  try {
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        system: systemPrompt,
+        messages: [{ role: 'user', content: msg }]
+      })
+    });
+    const data = await response.json();
+    const text = data.content?.map(b => b.text).join('') || '응답을 받지 못했습니다.';
+    aiDiv.innerHTML = formatAIText(text);
+  } catch (e) {
+    aiDiv.innerHTML = '⚠️ 오류가 발생했습니다. 다시 시도해 주세요.';
+  }
+}
+
+function appendMsg(text, role) {
+  const container = document.getElementById('chatMessages');
+  const div = document.createElement('div');
+  div.className = `msg msg-${role}`;
+  div.innerHTML = role === 'ai' ? formatAIText(text) : text;
+  container.appendChild(div);
+  container.scrollTop = container.scrollHeight;
+  return div;
+}
+
+function formatAIText(text) {
+  return text
+    .replace(/```([\s\S]*?)```/g, '<pre>$1</pre>')
+    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\n/g, '<br>');
+}
+
+document.getElementById('chatInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChat(); }
+});
+
+// ── Claude API helper ────────────────────────────────
+async function callClaude(prompt, targetId) {
+  try {
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+    const data = await response.json();
+    const text = data.content?.map(b => b.text).join('') || '응답 없음';
+    document.getElementById(targetId).innerHTML = formatAIText(text);
+  } catch (e) {
+    document.getElementById(targetId).innerHTML = '⚠️ AI 연결 오류. 다시 시도해 주세요.';
+  }
+}
+
+function copyReport(id) {
+  const text = document.getElementById(id).innerText;
+  navigator.clipboard.writeText(text).then(() => alert('클립보드에 복사되었습니다!'));
+}
+
+// ── Generic Tab Switcher ─────────────────────────────
+function switchTabGeneric(el, groupClass, targetId) {
+  el.closest('.tabs').querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  const allIds = {
+    'simp-tabs': ['simp-input','simp-guide','simp-preview'],
+    'annual-tabs': ['annual-input','annual-guide','annual-preview'],
+    'payslip-tabs': ['payslip-manual','payslip-excel']
+  };
+  (allIds[groupClass] || []).forEach(id => {
+    const el2 = document.getElementById(id);
+    if (el2) el2.style.display = 'none';
+  });
+  document.getElementById(targetId).style.display = 'block';
+}
+
+// ── 간이지급명세서 ────────────────────────────────────
+function addSimpEmpRow() {
+  const row = document.createElement('div');
+  row.className = 'simp-emp-row';
+  row.style.cssText = 'border:1px solid var(--border); border-radius:8px; padding:12px; margin-bottom:10px; position:relative;';
+  row.innerHTML = `
+    <button onclick="this.parentElement.remove()" style="position:absolute; top:8px; right:8px; background:var(--danger); border:none; color:white; width:20px; height:20px; border-radius:50%; cursor:pointer; font-size:12px;">✕</button>
+    <div class="grid-2" style="gap:8px;">
+      <div class="form-group" style="margin-bottom:8px;"><label>성명</label><input type="text" class="simp-name" placeholder="홍길동"></div>
+      <div class="form-group" style="margin-bottom:8px;"><label>주민등록번호</label><input type="text" class="simp-ssn" placeholder="000000-0000000"></div>
+      <div class="form-group" style="margin-bottom:8px;"><label>총급여 (원)</label><input type="number" class="simp-salary" placeholder="18000000"></div>
+      <div class="form-group" style="margin-bottom:8px;"><label>소득세 (원)</label><input type="number" class="simp-tax" placeholder="200000"></div>
+    </div>`;
+  document.getElementById('simpEmpList').appendChild(row);
+}
+
+function generateSimpStatement() {
+  const bizNo = document.getElementById('simpBizNo').value || '000-00-00000';
+  const bizName = document.getElementById('simpBizName').value || '(주)회사명';
+  const repName = document.getElementById('simpRepName').value || '대표자';
+  const typeMap = {half_employed:'근로소득(상용)', daily:'일용근로소득', business:'사업소득'};
+  const type = typeMap[document.getElementById('simpType').value];
+  const period = document.getElementById('simpPeriod').value;
+  const periodLabel = period === '2025-H1' ? '2025년 상반기(1월~6월)' :
+                      period === '2025-H2' ? '2025년 하반기(7월~12월)' : '2024년 하반기(7월~12월)';
+
+  const rows = document.querySelectorAll('.simp-emp-row');
+  let empData = [], totalSalary = 0, totalTax = 0;
+  rows.forEach(row => {
+    const name = row.querySelector('.simp-name')?.value || '-';
+    const ssn = row.querySelector('.simp-ssn')?.value || '-';
+    const salary = parseInt(row.querySelector('.simp-salary')?.value) || 0;
+    const tax = parseInt(row.querySelector('.simp-tax')?.value) || 0;
+    const localTax = Math.round(tax * 0.1);
+    totalSalary += salary;
+    totalTax += tax + localTax;
+    empData.push({name, ssn, salary, tax, localTax});
+  });
+
+  const previewHtml = `
+    <div class="card-title">📑 간이지급명세서 미리보기</div>
+    <div class="payslip" style="max-width:100%;">
+      <h3>간이지급명세서 (${type})</h3>
+      <table>
+        <tr><th>사업자등록번호</th><td>${bizNo}</td><th>상호</th><td>${bizName}</td></tr>
+        <tr><th>대표자</th><td>${repName}</td><th>귀속기간</th><td>${periodLabel}</td></tr>
+      </table>
+      <table>
+        <tr><th>성명</th><th>주민등록번호</th><th>총급여</th><th>소득세</th><th>지방소득세</th><th>합계</th></tr>
+        ${empData.map(e => `<tr>
+          <td>${e.name}</td>
+          <td>${e.ssn.replace(/(\d{6})-?(\d)(\d{6})/, '$1-$2******')}</td>
+          <td>${e.salary.toLocaleString()}</td>
+          <td>${e.tax.toLocaleString()}</td>
+          <td>${e.localTax.toLocaleString()}</td>
+          <td>${(e.tax+e.localTax).toLocaleString()}</td>
+        </tr>`).join('')}
+        <tr class="total-row"><td colspan="2">합계 (${empData.length}명)</td><td>${totalSalary.toLocaleString()}</td><td colspan="2"></td><td>${totalTax.toLocaleString()}</td></tr>
+      </table>
+      <p style="text-align:center; margin-top:12px; color:#666; font-size:11px;">※ 주민등록번호 뒷자리는 보안 처리되어 표시됩니다. 실제 제출 시 전체 번호 입력 필요.</p>
+    </div>
+    <div style="margin-top:14px; display:flex; gap:8px;">
+      <button class="btn btn-primary" onclick="window.print()">🖨️ 인쇄</button>
+      <button class="btn btn-secondary" onclick="generateSimpAICheck()">🤖 AI 검토 요청</button>
+    </div>
+    <div class="result-box" id="simpAICheckResult" style="margin-top:12px; display:none;"></div>`;
+
+  document.getElementById('simpPreviewCard').innerHTML = previewHtml;
+  // switch to preview tab
+  document.querySelectorAll('#page-simplified .tab')[2].click();
+}
+
+async function generateSimpGuideAI() {
+  const el = document.getElementById('simpGuideResult');
+  el.style.display = 'block';
+  el.innerHTML = '<div class="loading"><span></span><span></span><span></span></div>';
+  const prompt = `한국 세무 전문가로서 간이지급명세서 신고에 대해 상세히 안내해주세요.
+다음을 포함해주세요:
+1. 제출 의무자 범위
+2. 상용/일용/사업소득별 제출 기한 차이
+3. 홈택스 전자신고 단계별 방법
+4. 자주 발생하는 오류와 수정 방법
+5. 가산세 면제 요건`;
+  await callClaude(prompt, 'simpGuideResult');
+}
+
+async function generateSimpAICheck() {
+  const el = document.getElementById('simpAICheckResult');
+  el.style.display = 'block';
+  el.innerHTML = '<div class="loading"><span></span><span></span><span></span></div>';
+  const prompt = `간이지급명세서 제출 전 체크리스트와 주의사항을 정리해주세요. 실무에서 자주 실수하는 부분을 중심으로 간결하게 안내해주세요.`;
+  await callClaude(prompt, 'simpAICheckResult');
+}
+
+// ── 근로소득지급명세서 ────────────────────────────────
+function addAnnualEmpRow() {
+  const row = document.createElement('div');
+  row.className = 'annual-emp-row';
+  row.style.cssText = 'border:1px solid var(--border); border-radius:8px; padding:12px; margin-bottom:10px; position:relative;';
+  row.innerHTML = `
+    <button onclick="this.parentElement.remove()" style="position:absolute; top:8px; right:8px; background:var(--danger); border:none; color:white; width:20px; height:20px; border-radius:50%; cursor:pointer; font-size:12px;">✕</button>
+    <div class="grid-2" style="gap:8px;">
+      <div class="form-group" style="margin-bottom:8px;"><label>성명</label><input type="text" class="ann-name" placeholder="홍길동"></div>
+      <div class="form-group" style="margin-bottom:8px;"><label>주민등록번호</label><input type="text" class="ann-ssn" placeholder="000000-0000000"></div>
+      <div class="form-group" style="margin-bottom:8px;"><label>총급여 (원)</label><input type="number" class="ann-gross" placeholder="36000000"></div>
+      <div class="form-group" style="margin-bottom:8px;"><label>근로소득공제 (원)</label><input type="number" class="ann-deduct" placeholder="12750000"></div>
+      <div class="form-group" style="margin-bottom:8px;"><label>결정세액 (원)</label><input type="number" class="ann-final-tax" placeholder="800000"></div>
+      <div class="form-group" style="margin-bottom:8px;"><label>기납부세액 (원)</label><input type="number" class="ann-paid-tax" placeholder="850000"></div>
+    </div>
+    <div style="font-size:12px; color:var(--text-muted); margin-top:4px;">
+      근로소득공제 자동계산: <button class="btn btn-secondary" style="padding:3px 8px; font-size:11px;" onclick="autoCalcDeduction(this)">자동계산</button>
+    </div>`;
+  document.getElementById('annualEmpList').appendChild(row);
+}
+
+function autoCalcDeduction(btn) {
+  const row = btn.closest('.annual-emp-row');
+  const gross = parseInt(row.querySelector('.ann-gross')?.value) || 0;
+  let deduction = 0;
+  if (gross <= 5000000) deduction = gross * 0.7;
+  else if (gross <= 15000000) deduction = 3500000 + (gross - 5000000) * 0.4;
+  else if (gross <= 45000000) deduction = 7500000 + (gross - 15000000) * 0.15;
+  else if (gross <= 100000000) deduction = 12000000 + (gross - 45000000) * 0.05;
+  else deduction = 14750000 + (gross - 100000000) * 0.02;
+  deduction = Math.min(deduction, 20000000);
+  const deductEl = row.querySelector('.ann-deduct');
+  if (deductEl) deductEl.value = Math.round(deduction);
+}
+
+function generateAnnualStatement() {
+  const bizNo = document.getElementById('annualBizNo').value || '000-00-00000';
+  const bizName = document.getElementById('annualBizName').value || '(주)회사명';
+  const repName = document.getElementById('annualRepName').value || '대표자';
+  const year = document.getElementById('annualYear').value;
+  const workType = document.getElementById('annualWorkType').value === 'main' ? '주(현)근무지' : '종(전)근무지';
+
+  const rows = document.querySelectorAll('.annual-emp-row');
+  let empData = [], totalGross = 0, totalFinalTax = 0, totalPaidTax = 0;
+  rows.forEach(row => {
+    const name = row.querySelector('.ann-name')?.value || '-';
+    const ssn = row.querySelector('.ann-ssn')?.value || '-';
+    const gross = parseInt(row.querySelector('.ann-gross')?.value) || 0;
+    const deduct = parseInt(row.querySelector('.ann-deduct')?.value) || 0;
+    const finalTax = parseInt(row.querySelector('.ann-final-tax')?.value) || 0;
+    const paidTax = parseInt(row.querySelector('.ann-paid-tax')?.value) || 0;
+    const refund = paidTax - finalTax;
+    totalGross += gross; totalFinalTax += finalTax; totalPaidTax += paidTax;
+    empData.push({name, ssn, gross, deduct, taxableIncome: gross - deduct, finalTax, paidTax, refund});
+  });
+
+  const previewHtml = `
+    <div class="card-title">📃 근로소득 지급명세서 미리보기</div>
+    <div class="payslip" style="max-width:100%;">
+      <h3>${year}년 귀속 근로소득 지급명세서</h3>
+      <table>
+        <tr><th>사업자등록번호</th><td>${bizNo}</td><th>상호</th><td>${bizName}</td></tr>
+        <tr><th>대표자</th><td>${repName}</td><th>근무지 구분</th><td>${workType}</td></tr>
+      </table>
+      <table>
+        <tr><th>성명</th><th>주민등록번호</th><th>총급여</th><th>근로소득공제</th><th>과세표준</th><th>결정세액</th><th>기납부세액</th><th>차감징수(환급)</th></tr>
+        ${empData.map(e => `<tr>
+          <td>${e.name}</td>
+          <td>${e.ssn.replace(/(\d{6})-?(\d)(\d{6})/, '$1-$2******')}</td>
+          <td>${e.gross.toLocaleString()}</td>
+          <td>${e.deduct.toLocaleString()}</td>
+          <td>${e.taxableIncome.toLocaleString()}</td>
+          <td>${e.finalTax.toLocaleString()}</td>
+          <td>${e.paidTax.toLocaleString()}</td>
+          <td style="color:${e.refund >= 0 ? 'var(--success)' : 'var(--danger)'}">${e.refund >= 0 ? '환급 ' : '추가납부 '}${Math.abs(e.refund).toLocaleString()}</td>
+        </tr>`).join('')}
+        <tr class="total-row">
+          <td colspan="2">합계 (${empData.length}명)</td>
+          <td>${totalGross.toLocaleString()}</td>
+          <td colspan="2"></td>
+          <td>${totalFinalTax.toLocaleString()}</td>
+          <td>${totalPaidTax.toLocaleString()}</td>
+          <td style="color:${(totalPaidTax-totalFinalTax)>=0?'var(--success)':'var(--danger)'}">
+            ${(totalPaidTax-totalFinalTax)>=0?'환급 ':'추가납부 '}${Math.abs(totalPaidTax-totalFinalTax).toLocaleString()}
+          </td>
+        </tr>
+      </table>
+      <p style="text-align:center; margin-top:12px; color:#666; font-size:11px;">※ 이 명세서는 홈택스 전자신고 전 검토용입니다. 실제 신고는 홈택스에서 진행하세요.</p>
+    </div>
+    <div style="margin-top:14px; display:flex; gap:8px; flex-wrap:wrap;">
+      <button class="btn btn-primary" onclick="window.print()">🖨️ 인쇄</button>
+      <button class="btn btn-secondary" onclick="generateAnnualAICheck()">🤖 AI 검토 요청</button>
+      <button class="btn btn-secondary" onclick="generateCSVExport()">📊 CSV 내보내기</button>
+    </div>
+    <div class="result-box" id="annualAICheckResult" style="margin-top:12px; display:none;"></div>`;
+
+  document.getElementById('annualPreviewCard').innerHTML = previewHtml;
+  document.querySelectorAll('#page-annual .tab')[2].click();
+}
+
+async function generateAnnualGuideAI() {
+  const el = document.getElementById('annualGuideResult');
+  el.style.display = 'block';
+  el.innerHTML = '<div class="loading"><span></span><span></span><span></span></div>';
+  const prompt = `한국 세무 전문가로서 근로소득 지급명세서 제출에 대해 실무 중심으로 안내해주세요.
+다음을 포함해주세요:
+1. 연말정산과 지급명세서의 관계
+2. 원천징수영수증 vs 지급명세서 차이점
+3. 홈택스 전자제출 단계별 방법 (파일 업로드 포함)
+4. 수정 제출 방법
+5. 퇴직자·중도입사자 처리 방법`;
+  await callClaude(prompt, 'annualGuideResult');
+}
+
+async function generateAnnualAICheck() {
+  const el = document.getElementById('annualAICheckResult');
+  el.style.display = 'block';
+  el.innerHTML = '<div class="loading"><span></span><span></span><span></span></div>';
+  const prompt = `근로소득 지급명세서 제출 전 최종 점검 체크리스트를 작성해주세요. 
+환급/추가납부 처리, 공제항목 누락, 주민등록번호 오류 등 실무 오류 중심으로 간결하게 정리해주세요.`;
+  await callClaude(prompt, 'annualAICheckResult');
+}
+
+function generateCSVExport() {
+  const rows = document.querySelectorAll('.annual-emp-row');
+  let csv = '성명,주민등록번호,총급여,근로소득공제,결정세액,기납부세액\n';
+  rows.forEach(row => {
+    const name = row.querySelector('.ann-name')?.value || '';
+    const ssn = row.querySelector('.ann-ssn')?.value || '';
+    const gross = row.querySelector('.ann-gross')?.value || '';
+    const deduct = row.querySelector('.ann-deduct')?.value || '';
+    const finalTax = row.querySelector('.ann-final-tax')?.value || '';
+    const paidTax = row.querySelector('.ann-paid-tax')?.value || '';
+    csv += `${name},${ssn},${gross},${deduct},${finalTax},${paidTax}\n`;
+  });
+  const blob = new Blob(['\uFEFF' + csv], {type:'text/csv;charset=utf-8;'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = '근로소득지급명세서.csv';
+  a.click();
+}
+
+// ── 엑셀 업로드 기능 ──────────────────────────────────
+// SheetJS 동적 로드
+function loadSheetJS(callback) {
+  if (window.XLSX) { callback(); return; }
+  const s = document.createElement('script');
+  s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+  s.onload = callback;
+  document.head.appendChild(s);
+}
+
+// 드래그앤드롭
+const dropZone = document.getElementById('dropZone');
+if (dropZone) {
+  dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.style.borderColor = 'var(--accent)'; dropZone.style.background = 'rgba(0,212,170,0.05)'; });
+  dropZone.addEventListener('dragleave', e => { dropZone.style.borderColor = 'var(--border)'; dropZone.style.background = ''; });
+  dropZone.addEventListener('drop', e => {
+    e.preventDefault();
+    dropZone.style.borderColor = 'var(--border)';
+    dropZone.style.background = '';
+    const file = e.dataTransfer.files[0];
+    if (file) processExcelFile(file);
+  });
+}
+
+function handleExcelUpload(event) {
+  const file = event.target.files[0];
+  if (file) processExcelFile(file);
+}
+
+let excelData = [];
+
+function processExcelFile(file) {
+  loadSheetJS(() => {
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      try {
+        let rows = [];
+        if (file.name.endsWith('.csv')) {
+          // CSV 파싱
+          const text = new TextDecoder('utf-8').decode(e.target.result);
+          const lines = text.split('\n').filter(l => l.trim());
+          rows = lines.slice(1).map(line => {
+            const cols = line.split(',').map(c => c.trim().replace(/^"|"$/g, ''));
+            return {
+              name: cols[0] || '',
+              dept: cols[1] || '',
+              base: parseInt(cols[2]) || 0,
+              meal: parseInt(cols[3]) || 0,
+              transport: parseInt(cols[4]) || 0,
+              overtime: parseInt(cols[5]) || 0,
+              dependents: parseInt(cols[6]) || 1,
+              month: cols[7] || document.getElementById('excelSlipMonth').value
+            };
+          }).filter(r => r.name);
+        } else {
+          // XLSX 파싱
+          const wb = XLSX.read(e.target.result, {type:'array'});
+          const ws = wb.Sheets[wb.SheetNames[0]];
+          const json = XLSX.utils.sheet_to_json(ws, {header:1});
+          rows = json.slice(1).map(row => ({
+            name: row[0] || '',
+            dept: row[1] || '',
+            base: parseInt(row[2]) || 0,
+            meal: parseInt(row[3]) || 0,
+            transport: parseInt(row[4]) || 0,
+            overtime: parseInt(row[5]) || 0,
+            dependents: parseInt(row[6]) || 1,
+            month: row[7] || document.getElementById('excelSlipMonth').value
+          })).filter(r => r.name);
+        }
+
+        excelData = rows;
+        showExcelPreview(rows);
+      } catch(err) {
+        alert('파일 읽기 오류: ' + err.message + '\n양식을 다시 확인해주세요.');
+      }
+    };
+    if (file.name.endsWith('.csv')) reader.readAsArrayBuffer(file);
+    else reader.readAsArrayBuffer(file);
+  });
+}
+
+function showExcelPreview(rows) {
+  document.getElementById('excelParseStatus').textContent = `✅ ${rows.length}명 데이터 불러오기 완료!`;
+  let html = `<thead><tr>
+    <th>이름</th><th>부서</th><th>기본급</th><th>식대</th><th>교통비</th><th>연장수당</th><th>부양가족</th>
+  </tr></thead><tbody>`;
+  rows.forEach(r => {
+    html += `<tr>
+      <td>${r.name}</td><td>${r.dept}</td>
+      <td>${r.base.toLocaleString()}</td><td>${r.meal.toLocaleString()}</td>
+      <td>${r.transport.toLocaleString()}</td><td>${r.overtime.toLocaleString()}</td>
+      <td>${r.dependents}명</td>
+    </tr>`;
+  });
+  html += '</tbody>';
+  document.getElementById('excelPreviewTable').innerHTML = html;
+  document.getElementById('excelParseResult').style.display = 'block';
+  document.getElementById('dropZone').style.display = 'none';
+}
+
+function resetExcelUpload() {
+  excelData = [];
+  document.getElementById('excelParseResult').style.display = 'none';
+  document.getElementById('dropZone').style.display = 'block';
+  document.getElementById('excelFileInput').value = '';
+  document.getElementById('bulkPayslipList').style.display = 'none';
+}
+
+function calcPayslipData(r) {
+  const gross = r.base + r.meal + r.transport + r.overtime;
+  const pension = Math.round(r.base * 0.045);
+  const health = Math.round(r.base * 0.03545);
+  const ltc = Math.round(r.base * 0.07090 * 0.00454);
+  const employ = Math.round(r.base * 0.009);
+  const annual = r.base * 12;
+  const deduction = Math.min(annual * 0.7, 20000000);
+  const taxable = Math.max(0, annual - deduction - (1500000 * r.dependents));
+  let annualTax = 0;
+  for (const b of WT_TABLE) {
+    if (taxable > b.min) annualTax = Math.min(taxable, b.max) * b.rate - b.deduct;
+  }
+  const incomeTax = Math.max(0, Math.round(annualTax / 12));
+  const localTax = Math.round(incomeTax * 0.1);
+  const totalDeduction = pension + health + ltc + employ + incomeTax + localTax;
+  const netPay = gross - totalDeduction;
+  return {gross, pension, health, ltc, employ, incomeTax, localTax, totalDeduction, netPay};
+}
+
+function generateAllPayslips() {
+  if (!excelData.length) return;
+  const month = document.getElementById('excelSlipMonth').value;
+  const [y, m] = month.split('-');
+
+  let html = '';
+  excelData.forEach((r, idx) => {
+    const c = calcPayslipData(r);
+    html += `
+      <div class="payslip" id="bulk-slip-${idx}" style="max-width:100%; margin-bottom:20px; page-break-after:always;">
+        <h3>${y}년 ${m}월 급여명세서</h3>
+        <table>
+          <tr><th colspan="2">인적 사항</th></tr>
+          <tr><td>성명</td><td>${r.name}</td></tr>
+          <tr><td>부서</td><td>${r.dept}</td></tr>
+          <tr><td>지급일</td><td>${y}년 ${m}월 25일</td></tr>
+        </table>
+        <table>
+          <tr><th>지급 항목</th><th>금액</th><th>공제 항목</th><th>금액</th></tr>
+          <tr><td>기본급</td><td>${r.base.toLocaleString()}</td><td>국민연금</td><td>${c.pension.toLocaleString()}</td></tr>
+          <tr><td>식대</td><td>${r.meal.toLocaleString()}</td><td>건강보험</td><td>${c.health.toLocaleString()}</td></tr>
+          <tr><td>교통비</td><td>${r.transport.toLocaleString()}</td><td>장기요양보험</td><td>${c.ltc.toLocaleString()}</td></tr>
+          <tr><td>연장수당</td><td>${r.overtime.toLocaleString()}</td><td>고용보험</td><td>${c.employ.toLocaleString()}</td></tr>
+          <tr><td></td><td></td><td>소득세</td><td>${c.incomeTax.toLocaleString()}</td></tr>
+          <tr><td></td><td></td><td>지방소득세</td><td>${c.localTax.toLocaleString()}</td></tr>
+          <tr class="total-row"><td>지급 합계</td><td>${c.gross.toLocaleString()}</td><td>공제 합계</td><td>${c.totalDeduction.toLocaleString()}</td></tr>
+        </table>
+        <table>
+          <tr class="total-row"><th colspan="2">실수령액</th><th colspan="2" style="font-size:15px">${c.netPay.toLocaleString()} 원</th></tr>
+        </table>
+        <p style="text-align:center; margin-top:8px; color:#666; font-size:11px;">* 자동 계산 결과이며 실제 금액과 차이가 있을 수 있습니다.</p>
+      </div>
+      <hr style="border:1px dashed #ccc; margin:10px 0;">`;
+  });
+
+  document.getElementById('bulkPayslipContent').innerHTML = html;
+  document.getElementById('bulkPayslipList').style.display = 'block';
+  document.getElementById('bulkPayslipList').scrollIntoView({behavior:'smooth'});
+}
+
+function printAllPayslips() {
+  const content = document.getElementById('bulkPayslipContent').innerHTML;
+  const win = window.open('', '_blank');
+  win.document.write(`<html><head><title>급여명세서 일괄 인쇄</title>
+    <style>
+      body { font-family: 'Noto Sans KR', sans-serif; padding: 20px; font-size: 12px; }
+      table { width: 100%; border-collapse: collapse; margin-bottom: 12px; }
+      th, td { border: 1px solid #ccc; padding: 5px 8px; }
+      th { background: #f0f0f0; font-weight: 700; }
+      .total-row { font-weight: 700; background: #e8f5e9; }
+      h3 { text-align: center; font-size: 16px; border-bottom: 2px solid #000; padding-bottom: 8px; margin-bottom: 14px; }
+      @media print { .payslip { page-break-after: always; } }
+    </style></head><body>${content}</body></html>`);
+  win.document.close();
+  win.print();
+}
+
+function exportAllToCSV() {
+  if (!excelData.length) return;
+  let csv = '이름,부서,기본급,식대,교통비,연장수당,지급합계,공제합계,실수령액\n';
+  excelData.forEach(r => {
+    const c = calcPayslipData(r);
+    csv += `${r.name},${r.dept},${r.base},${r.meal},${r.transport},${r.overtime},${c.gross},${c.totalDeduction},${c.netPay}\n`;
+  });
+  const blob = new Blob(['\uFEFF' + csv], {type:'text/csv;charset=utf-8;'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = '급여명세서_일괄.csv';
+  a.click();
+}
+
+// 엑셀 양식 다운로드
+function downloadExcelTemplate() {
+  loadSheetJS(() => {
+    const ws_data = [
+      ['이름', '부서', '기본급', '식대', '교통비', '연장수당', '부양가족수', '지급연월'],
+      ['홍길동', '경영지원팀', 3000000, 200000, 100000, 0, 1, '2025-01'],
+      ['김철수', '개발팀', 3500000, 200000, 100000, 150000, 2, '2025-01'],
+      ['이영희', '영업팀', 2800000, 200000, 100000, 0, 1, '2025-01'],
+    ];
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet(ws_data);
+    ws['!cols'] = [{wch:10},{wch:14},{wch:12},{wch:10},{wch:10},{wch:12},{wch:12},{wch:12}];
+    XLSX.utils.book_append_sheet(wb, ws, '급여명세서양식');
+    XLSX.writeFile(wb, '급여명세서_양식.xlsx');
+  });
+}
+
+function downloadCSVTemplate() {
+  const csv = '이름,부서,기본급,식대,교통비,연장수당,부양가족수,지급연월\n홍길동,경영지원팀,3000000,200000,100000,0,1,2025-01\n김철수,개발팀,3500000,200000,100000,150000,2,2025-01\n이영희,영업팀,2800000,200000,100000,0,1,2025-01\n';
+  const blob = new Blob(['\uFEFF' + csv], {type:'text/csv;charset=utf-8;'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = '급여명세서_양식.csv';
+  a.click();
+}
+
+// end
+</script>
+</body>
+</html>
